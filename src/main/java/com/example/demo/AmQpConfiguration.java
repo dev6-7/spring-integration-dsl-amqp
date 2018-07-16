@@ -1,13 +1,65 @@
 package com.example.demo;
 
+import com.example.demo.model.Receiver;
+import org.springframework.amqp.core.Binding;
+import org.springframework.amqp.core.BindingBuilder;
+import org.springframework.amqp.core.Queue;
+import org.springframework.amqp.core.TopicExchange;
+import org.springframework.amqp.rabbit.connection.CachingConnectionFactory;
+import org.springframework.amqp.rabbit.connection.ConnectionFactory;
+import org.springframework.amqp.rabbit.listener.SimpleMessageListenerContainer;
+import org.springframework.amqp.rabbit.listener.adapter.MessageListenerAdapter;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.integration.annotation.IntegrationComponentScan;
 import org.springframework.integration.config.EnableIntegration;
 
 @Configuration
-@EnableIntegration
-@IntegrationComponentScan
+@ComponentScan
 public class AmQpConfiguration {
+
+    static final String testQueue = "testQueue";
+    static final String testTopicExchange = "testTopicExchange";
+
+    @Bean
+    public ConnectionFactory connectionFactory() {
+        return new CachingConnectionFactory("localhost", 5672);
+    }
+
+    @Bean
+    Queue queue(){
+        return new Queue(testQueue, false);
+    }
+
+    @Bean
+    TopicExchange exchange(){
+        return new TopicExchange(testTopicExchange);
+    }
+
+    @Bean
+    Binding binding(Queue queue, TopicExchange topicExchange){
+        return BindingBuilder.bind(queue).to(topicExchange).with("testRoutingKey");
+    }
+
+    @Bean
+    SimpleMessageListenerContainer container(ConnectionFactory connectionFactory, MessageListenerAdapter messageListenerAdapter){
+        SimpleMessageListenerContainer container = new SimpleMessageListenerContainer();
+        container.setConnectionFactory(connectionFactory);
+        container.setQueueNames(testQueue);
+        container.setMessageListener(messageListenerAdapter);
+        return container;
+    }
+
+    /**
+     * Because the Receiver class is a POJO, it needs to be wrapped in the MessageListenerAdapter,
+     * where you specify it to invoke receiveMessage.
+     */
+    @Bean
+    MessageListenerAdapter listenerAdapter(Receiver receiver){
+        return new MessageListenerAdapter(receiver, "receiveMessage");
+    }
+
 
     /*@Autowired
     AmqpAdmin amqpAdmin;
